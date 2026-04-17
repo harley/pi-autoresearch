@@ -1369,7 +1369,11 @@ export default function autoresearchExtension(pi: ExtensionAPI) {
     resumeMsg += ` ${BENCHMARK_GUARDRAIL}`;
 
     runtime.autoResumeTurns++;
-    pi.sendUserMessage(resumeMsg);
+    if (ctx.isIdle()) {
+      pi.sendUserMessage(resumeMsg);
+    } else {
+      pi.sendUserMessage(resumeMsg, { deliverAs: "followUp" });
+    }
   });
 
   // When in autoresearch mode, add a static note to the system prompt.
@@ -2882,14 +2886,21 @@ export default function autoresearchExtension(pi: ExtensionAPI) {
       const mdPath = path.join(resolveWorkDir(ctx.cwd), "autoresearch.md");
       const hasRules = fs.existsSync(mdPath);
 
+      const startupMessage = hasRules
+        ? `Autoresearch mode active. ${trimmedArgs} ${BENCHMARK_GUARDRAIL}`
+        : `Start autoresearch: ${trimmedArgs} ${BENCHMARK_GUARDRAIL}`;
+
       if (hasRules) {
         ctx.ui.notify("Autoresearch mode ON — rules loaded from autoresearch.md", "info");
-        pi.sendUserMessage(`Autoresearch mode active. ${trimmedArgs} ${BENCHMARK_GUARDRAIL}`);
       } else {
         ctx.ui.notify("Autoresearch mode ON — no autoresearch.md found, setting up", "info");
-        pi.sendUserMessage(
-          `Start autoresearch: ${trimmedArgs} ${BENCHMARK_GUARDRAIL}`
-        );
+      }
+
+      if (ctx.isIdle()) {
+        pi.sendUserMessage(startupMessage);
+      } else {
+        pi.sendUserMessage(startupMessage, { deliverAs: "followUp" });
+        ctx.ui.notify("Autoresearch start queued until the current run finishes", "info");
       }
     },
   });
